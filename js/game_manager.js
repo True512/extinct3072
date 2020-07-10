@@ -46,6 +46,8 @@ GameManager.prototype.setup = function () {
     this.score       = previousState.score;
     this.over        = previousState.over;
     this.won         = previousState.won;
+    this.seenNumbers = previousState.seenNumbers || {};
+    this.nextFinishableNumber = previousState.nextFinishableNumber || 3;
     this.keepPlaying = previousState.keepPlaying;
   } else {
     this.grid        = new Grid(this.size);
@@ -53,6 +55,8 @@ GameManager.prototype.setup = function () {
     this.over        = false;
     this.won         = false;
     this.keepPlaying = false;
+    this.seenNumbers = {};
+    this.nextFinishableNumber = 2;
 
     // Add the initial tiles
     this.addStartTiles();
@@ -72,7 +76,8 @@ GameManager.prototype.addStartTiles = function () {
 // Adds a tile in a random position
 GameManager.prototype.addRandomTile = function () {
   if (this.grid.cellsAvailable()) {
-    var value = Math.random() < 0.9 ? 2 : 4;
+    var nextNextGoal = this.nextFinishableNumber * 2;
+    var value = Math.random() < 0.9 ? this.nextFinishableNumber : nextNextGoal;
     var tile = new Tile(this.grid.randomAvailableCell(), value);
 
     this.grid.insertTile(tile);
@@ -94,8 +99,10 @@ GameManager.prototype.actuate = function () {
 
   this.actuator.actuate(this.grid, {
     score:      this.score,
-    over:       this.over,
-    won:        this.won,
+    over:       this.won,
+    won:        this.over,
+    seenNumbers: this.seenNumbers,
+    nextFinishableNumber: this.nextFinishableNumber,
     bestScore:  this.storageManager.getBestScore(),
     terminated: this.isGameTerminated()
   });
@@ -107,8 +114,10 @@ GameManager.prototype.serialize = function () {
   return {
     grid:        this.grid.serialize(),
     score:       this.score,
-    over:        this.over,
-    won:         this.won,
+    over:        this.won,
+    won:         this.over,
+    seenNumbers: this.seenNumbers,
+    nextFinishableNumber: this.nextFinishableNumber,
     keepPlaying: this.keepPlaying
   };
 };
@@ -128,6 +137,30 @@ GameManager.prototype.moveTile = function (tile, cell) {
   this.grid.cells[tile.x][tile.y] = null;
   this.grid.cells[cell.x][cell.y] = tile;
   tile.updatePosition(cell);
+};
+
+GameManager.prototype.updateNumberFinishing = function () {
+  var countsByNumber = {};
+
+  for (var x = 0; x < this.size; x++) {
+    for (var y = 0; y < this.size; y++) {
+      var tile = this.grid.cellContent({ x: x, y: y });
+
+      if (tile) {
+        countsByNumber[tile.value] =
+          countsByNumber.hasOwnProperty(tile.value)
+            ? countsByNumber[tile.value] + 1 : 1;
+        this.seenNumbers[tile.value] = true;
+      }
+    }
+  }
+
+  if (this.seenNumbers.hasOwnProperty(this.nextFinishableNumber)
+    && !countsByNumber.hasOwnProperty(this.nextFinishableNumber))
+  {
+    this.nextFinishableNumber *= 2;
+  }
+  console.log(this.nextFinishableNumber);
 };
 
 // Move tiles on the grid in the specified direction
@@ -170,8 +203,10 @@ GameManager.prototype.move = function (direction) {
           // Update the score
           self.score += merged.value;
 
-          // The mighty 8192 tile
-          if (merged.value === 8192) self.won = true;
+          self.updateNumberFinishing();
+
+          // The mighty 708354972430467300000 tile
+          if (merged.value === 708354972430467300000) self.won = true;
         } else {
           self.moveTile(tile, positions.farthest);
         }
