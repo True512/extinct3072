@@ -56,7 +56,7 @@ GameManager.prototype.setup = function () {
     this.won         = false;
     this.keepPlaying = false;
     this.seenNumbers = {};
-    this.nextFinishableNumber = 2;
+    this.nextFinishableNumber = 3;
 
     // Add the initial tiles
     this.addStartTiles();
